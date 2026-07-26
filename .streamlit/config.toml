@@ -1,0 +1,17 @@
+# Theme grounded in Singapore's actual Government Design System (SGDS,
+# designsystem.tech.gov.sg), since this app's subject matter is Singapore
+# government support schemes: primary red, near-black text (not pure
+# black), and Inter (SGDS's own specified typeface) rather than a generic
+# default palette.
+
+[theme]
+base = "light"
+primaryColor = "#F4333D"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F5F5"
+textColor = "#0E0E0E"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter&display=swap"
+headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter&display=swap"
+baseFontSize = 18
+baseRadius = "small"
+buttonRadius = "small"

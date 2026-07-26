@@ -1,16 +1,17 @@
 """Streamlit UI: a single question box over the 6 supported schemes.
 
 Fixed pipeline, no agent framework - the model never decides its own
-steps: gate first, then (only if answerable) retrieve and generate. The
-gate's own category decides which scheme's chunks get retrieved, so
-retrieval never has to guess.
+steps: gate first, then (only if answerable) retrieve, rerank, and
+generate. The gate's own category decides which scheme's chunks get
+retrieved, so retrieval never has to guess. Retrieval resolves first, so
+sources render immediately, then the answer streams in token by token.
 
 Run with: uv run streamlit run app.py
 """
 
 import streamlit as st
 
-from rag.chain import build_chain, build_retriever
+from rag.chain import build_chain, build_retriever, dedupe_sources, retrieve_context
 from rag.gate import route_question
 from rag.ingest import load_vectorstore
 
@@ -23,13 +24,46 @@ SCHEME_LABELS = {
     "pioneer_merdeka": "Pioneer / Merdeka Generation Package",
 }
 
+EXAMPLE_QUESTIONS = [
+    ("CPF LIFE", "What is the minimum retirement savings needed to join CPF LIFE?"),
+    ("Silver Support", "How much does Silver Support pay each quarter?"),
+    ("ComCare", "What income qualifies someone for ComCare assistance?"),
+    ("Lease Buyback", "What is the Lease Buyback Scheme bonus for a 3-room flat?"),
+    ("EASE", "What percentage of the EASE improvement cost does the government pay?"),
+    ("Pioneer/Merdeka", "What year must someone be born to qualify for the Pioneer Generation Package?"),
+]
+
+# The theme deliberately echoes Singapore's real Government Design System
+# (see .streamlit/config.toml), so this disclaimer isn't optional polish,
+# it's what keeps a convincingly official-looking demo from being mistaken
+# for an actual government channel.
+DISCLAIMER = (
+    "Independent personal portfolio project. Not affiliated with, "
+    "endorsed by, or an official channel of the Singapore Government."
+)
+
 st.set_page_config(page_title="AskLeh", page_icon="🧓")
+
+with st.sidebar:
+    st.header("About AskLeh")
+    st.write(
+        "Answers questions about 6 Singapore senior support schemes from "
+        "a small, hand-verified corpus of real government pages and "
+        "brochures."
+    )
+    st.subheader("Covered schemes")
+    for label in SCHEME_LABELS.values():
+        st.write(f"- {label}")
+    st.divider()
+    st.caption(DISCLAIMER)
+    st.caption("[Source on GitHub](https://github.com/fangting89/ask-leh)")
+
 st.title("AskLeh")
 st.caption(
-    "Ask about "
-    + ", ".join(SCHEME_LABELS.values())
-    + ". Anything else will be declined."
+    "Ask a question about Singapore senior support schemes, answered in "
+    "plain language."
 )
+st.caption(f"⚠️ {DISCLAIMER}")
 
 
 @st.cache_resource
@@ -44,7 +78,18 @@ def get_vectorstore():
     return load_vectorstore()
 
 
-question = st.text_input("Your question")
+def _set_question(text: str) -> None:
+    st.session_state.question = text
+
+
+st.write("Try an example:")
+EXAMPLES_PER_ROW = 3
+for row_start in range(0, len(EXAMPLE_QUESTIONS), EXAMPLES_PER_ROW):
+    row = EXAMPLE_QUESTIONS[row_start : row_start + EXAMPLES_PER_ROW]
+    for col, (label, text) in zip(st.columns(EXAMPLES_PER_ROW), row):
+        col.button(label, on_click=_set_question, args=(text,))
+
+question = st.text_input("Your question", key="question")
 
 if question:
     with st.spinner("Checking..."):
@@ -57,19 +102,22 @@ if question:
             + ". Please ask about one of these instead."
         )
     else:
-        with st.spinner("Looking up an answer..."):
+        with st.spinner("Looking up sources..."):
             retriever = build_retriever(get_vectorstore(), scheme=route["category"])
-            chain = build_chain(retriever)
-            result = chain.invoke(question)
+            context = retrieve_context(retriever, question)
 
-        st.write(result["answer"])
+        # Sources are already fully resolved at this point (retrieval,
+        # unlike generation, isn't worth streaming), so show them before
+        # the answer streams in below, rather than making the user wait
+        # for the whole answer just to see where it came from.
+        sources = dedupe_sources(context)
+        if sources:
+            with st.expander(f"Sources ({len(sources)})", expanded=True):
+                for scheme, url in sources:
+                    label = SCHEME_LABELS.get(scheme, "Source")
+                    st.markdown(f"- [{label}]({url})")
 
-        st.subheader("Sources")
-        seen_urls: set[str] = set()
-        for doc in result["context"]:
-            url = doc.metadata.get("source_url", "")
-            if not url or url in seen_urls:
-                continue
-            seen_urls.add(url)
-            label = SCHEME_LABELS.get(doc.metadata.get("scheme"), "Source")
-            st.markdown(f"- [{label}]({url})")
+        with st.container(border=True):
+            st.markdown("**Answer**")
+            chain = build_chain()
+            st.write_stream(chain.stream({"context": context, "question": question}))
