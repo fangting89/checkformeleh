@@ -129,6 +129,47 @@ EVAL_QUESTIONS: list[EvalQuestion] = [
         expected_scheme="pioneer_merdeka",
         expected_keywords=("25%",),
     ),
+    # -- answerable: scheme-boundary edge cases --
+    # These deliberately share vocabulary or explicitly name a *different*
+    # scheme than the one that actually answers them, testing whether the
+    # gate and retrieval hold up under lexical overlap, not just on
+    # cleanly-scoped questions. All expected fields hand-verified against
+    # data/sources/ the same way as every other question here.
+    EvalQuestion(
+        id="silver_support_3room_higher_tier",
+        question="What is the Silver Support quarterly payout for a 3-room flat household with per capita income between $1,500 and $2,300?",
+        category="answerable",
+        expected_scheme="silver_support",
+        expected_keywords=("$430",),
+    ),
+    EvalQuestion(
+        id="comcare_lta_lease_buyback_mention",
+        question="Does receiving a small monthly payout from the Lease Buyback Scheme affect someone's eligibility for ComCare Long-Term Assistance?",
+        category="answerable",
+        expected_scheme="comcare",
+        expected_keywords=("Lease Buyback",),
+    ),
+    EvalQuestion(
+        id="lease_buyback_cpf_life_link",
+        question="Does joining the Lease Buyback Scheme involve CPF LIFE?",
+        category="answerable",
+        expected_scheme="lease_buyback",
+        expected_keywords=("CPF LIFE",),
+    ),
+    EvalQuestion(
+        id="lease_buyback_5room_bonus",
+        question="What is the Lease Buyback Scheme bonus for a 5-room or bigger flat?",
+        category="answerable",
+        expected_scheme="lease_buyback",
+        expected_keywords=("$7,500",),
+    ),
+    EvalQuestion(
+        id="ease_hfad_4room",
+        question="How much does a Home Fire Alarm Device cost the flat owner for a 4-room flat under EASE?",
+        category="answerable",
+        expected_scheme="ease",
+        expected_keywords=("$9.00",),
+    ),
     # -- out_of_scope: real SG government topics outside the 6 schemes --
     EvalQuestion(
         id="oos_bto",

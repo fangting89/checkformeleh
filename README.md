@@ -28,7 +28,7 @@ or generation ever runs. See [How it works](#how-it-works) below.
 ## How it works
 
 ```
-question -> gate (in/out of scope?) -> retrieve (scheme-scoped) -> generate -> answer + sources
+question -> gate (in/out of scope?) -> retrieve (scheme-scoped) -> rerank -> generate -> answer + sources
 ```
 
 1. **Gate** (`rag/gate.py`): a forced tool-use call (Claude Haiku,
@@ -43,17 +43,29 @@ question -> gate (in/out of scope?) -> retrieve (scheme-scoped) -> generate -> a
 2. **Retrieve** (`rag/chain.py`): the gate's own category scopes retrieval
    to just that scheme's chunks (a Chroma metadata filter), so a question
    about ComCare can't accidentally surface a similarly-worded Silver
-   Support chunk. Retrieves the top 6 chunks.
-3. **Generate** (`rag/chain.py`): Claude Haiku answers using *only* the
+   Support chunk. Retrieves a wide candidate set (20 chunks) by embedding
+   similarity.
+3. **Rerank** (`rag/chain.py`): a `sentence-transformers` cross-encoder
+   (`cross-encoder/ms-marco-MiniLM-L6-v2`) re-scores the 20 candidates
+   against the actual question and keeps the best 6. A cross-encoder reads
+   the question and a chunk together rather than comparing two separately-
+   computed embedding vectors, so it ranks relevance more precisely than
+   the embedding search alone, at the cost of being too slow to run over
+   the whole corpus, hence reranking a narrowed candidate set instead of
+   replacing retrieval.
+4. **Generate** (`rag/chain.py`): Claude Haiku answers using *only* the
    retrieved context, via a hand-written prompt (not a hub-pulled one).
-4. **Sources**: the app's "Sources" list is built entirely from the
+   Retrieval and generation are separate calls, not one combined step, so
+   the app can show sources immediately (retrieval is fast) while the
+   answer streams in token by token (generation is the slow part).
+5. **Sources**: the app's "Sources" list is built entirely from the
    retrieved chunks' own metadata (`scheme`, `source_url`), never parsed
    out of the model's answer text, so a citation can't be hallucinated.
 
 Corpus: 10 hand-cleaned Markdown files under `data/sources/`, each fetched
 from a real government page or PDF brochure and manually verified against
 the live source, with a provenance header (`source_url`, `scheme`, `title`,
-`retrieved`). Chunked at 500 characters / 0 overlap, embedded locally with
+`retrieved`). Chunked at 500 characters / 50 overlap, embedded locally with
 `sentence-transformers/all-MiniLM-L6-v2` (free, no API cost, no
 run-to-run embedding drift), stored in a local Chroma vector store.
 
@@ -84,11 +96,13 @@ uv run python -m eval.run_eval
 
 ## Eval results
 
-Scored against a 24-question hand-verified golden set (`eval/dataset.py`:
-12 answerable questions across all 6 schemes, 6 out-of-scope, 6
-adversarial prompt-injection attempts), deterministically, no
-LLM-as-judge. See `notebooks/02_eval_insights.ipynb` for the full
-executed run with example cases.
+Scored against a 29-question hand-verified golden set (`eval/dataset.py`:
+17 answerable questions, including 5 scheme-boundary edge cases that
+deliberately name or share vocabulary with a *different* scheme than the
+one that actually answers them, 6 out-of-scope, 6 adversarial
+prompt-injection attempts), deterministically, no LLM-as-judge. See
+`notebooks/02_eval_insights.ipynb` for the full executed run with example
+cases.
 
 | Check | Result |
 |---|---|
@@ -96,7 +110,7 @@ executed run with example cases.
 | Gate accuracy (adversarial subset) | 1.0 |
 | Retrieval hit-rate | 1.0 |
 | Keyword pass-rate | 1.0 |
-| Hallucination flags | 0 / 24 |
+| Hallucination flags | 0 / 29 |
 
 The first eval run wasn't perfect. It caught 2 real retrieval failures
 (a cross-scheme mix-up between ComCare and Silver Support, and a correct
@@ -105,16 +119,58 @@ root-caused, and fixed in `notebooks/02_eval_insights.ipynb` rather than
 hidden: the eval harness's job is to catch exactly this kind of failure
 before a user does.
 
+**Reranking and retrieval width solve different problems, not the same one.**
+Before adding reranking, tested whether it alone, at the *old* `k=4`
+(before the earlier fix that raised it to what retrieval now widens to),
+would have caught the original near-miss bugs. For the Lease Buyback
+case, no: the correct chunk isn't in the `k=4` embedding-search candidate
+set at all, so reranking, which can only reorder chunks retrieval already
+found, has nothing to work with. (The ComCare case wasn't a clean repro
+of this specific test, since the corpus's chunking changed, 0 to 50
+character overlap, between when that bug was originally found and now,
+so its retrieval results at `k=4` no longer match the original
+conditions.) The honest conclusion: a wide enough initial candidate set
+and reranking are complementary, not substitutes, retrieval width decides
+whether the right chunk is available to consider at all, reranking
+decides how precisely it gets ordered once it is.
+
+**Expanding the eval set with scheme-boundary questions caught a real gate
+bug, not just a retrieval one.** One new question asked whether a Lease
+Buyback payout affects ComCare eligibility, a question genuinely about
+ComCare's rules, fully answerable from ComCare's own source document, but
+phrased in a way that names Lease Buyback prominently. The gate
+classified it as `lease_buyback`, scoping retrieval to the wrong scheme
+entirely. The system didn't hallucinate, it correctly said it lacked the
+information, safe behavior, but it also couldn't answer a question it
+should have been able to. Root cause: the gate's system prompt (`rag/gate.py`)
+never said what to do when a question names more than one scheme. Fixed
+with one clarifying sentence, classify by whichever scheme's *rules* the
+question is actually asking about, not whichever scheme is merely named,
+re-verified against the single failing question before re-running the
+full suite, all 29 now pass.
+
 ## What I'd add with more time
 
-- **Reranking** after the initial vector search, since the retrieval
-  cutoff issue above suggests plain cosine similarity alone doesn't
-  always rank the best chunk first.
+- **Groundedness checking beyond similarity thresholds.** Tried adding a
+  similarity-score cutoff so the app could tell "in scope but not
+  actually covered by the corpus" apart from "found a real answer," and
+  measured it before shipping it: across the 12 real answerable eval
+  questions, top-chunk similarity scores ranged 0.366-0.741; hand-crafted
+  "plausible but uncovered" probe questions scored 0.342-0.522 in the
+  same range, with the lowest real answer scoring *below* one of the
+  fake probes. No threshold separates them without either rejecting a
+  correct answer or letting a bad one through. Root cause: the corpus is
+  small and topically narrow (10 documents, one per scheme), so an
+  off-target question about a covered scheme still retrieves genuinely
+  similar-scoring chunks even when the specific fact isn't present.
+  Decided not to ship a threshold that doesn't reliably work. A forced
+  tool-use groundedness check on the generation step itself (same
+  pattern as the gate, but judging "is this answer actually supported by
+  the context" rather than similarity score) would likely do better, and
+  is the next thing worth trying.
 - **A larger, more adversarial eval set**: the current 6 out-of-scope and
   6 adversarial questions are enough to be a meaningful signal, not
   enough to be exhaustive.
-- **Streaming answers** in the UI, for a more responsive feel on longer
-  answers.
 - **A "last updated" staleness check** against the live government pages,
   since scheme figures do change over time and this corpus is a snapshot.
 

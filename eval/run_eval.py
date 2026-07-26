@@ -28,7 +28,7 @@ from typing import TypedDict
 from langchain_community.vectorstores import Chroma
 
 from eval.dataset import EVAL_QUESTIONS, EvalQuestion
-from rag.chain import build_chain, build_retriever
+from rag.chain import build_chain, build_retriever, retrieve_context
 from rag.gate import route_question
 from rag.ingest import build_vectorstore
 
@@ -99,10 +99,9 @@ def _score_question(question: EvalQuestion, vectorstore: Chroma) -> QuestionResu
         return result
 
     retriever = build_retriever(vectorstore, scheme=route["category"])
-    chain = build_chain(retriever)
-    chain_result = chain.invoke(question.question)
-    answer = chain_result["answer"]
-    context_docs = chain_result["context"]
+    context_docs = retrieve_context(retriever, question.question)
+    chain = build_chain()
+    answer = chain.invoke({"context": context_docs, "question": question.question})
 
     result["answer"] = answer
     result["retrieval_hit"] = any(

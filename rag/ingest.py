@@ -3,10 +3,12 @@ persists them to a local Chroma vector store.
 
 Reuses AIAP Assignment 8's "load a folder of documents" pattern
 (PyPDFDirectoryLoader there, DirectoryLoader+TextLoader here since the
-corpus is local Markdown, not PDFs) and its chunking call
-(RecursiveCharacterTextSplitter) unchanged. The one real difference from
-Assignment 8: HuggingFaceEmbeddings (free, local) instead of
-AzureOpenAIEmbeddings, since this project has no Azure credentials.
+corpus is local Markdown, not PDFs) and its splitter class
+(RecursiveCharacterTextSplitter). Two differences from Assignment 8:
+HuggingFaceEmbeddings (free, local) instead of AzureOpenAIEmbeddings,
+since this project has no Azure credentials; and a nonzero chunk overlap
+(Assignment 8 used 0), so a fact sitting right at a chunk boundary still
+appears in full in at least one chunk instead of being split across two.
 
 Typical usage example:
 
@@ -93,8 +95,9 @@ def build_vectorstore(persist: bool = True) -> Chroma:
         The populated Chroma vector store.
     """
     docs = load_documents()
-    # Same chunk size/overlap as AIAP Assignment 8's own splitter call.
-    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+    # Same chunk_size as AIAP Assignment 8's own splitter call; overlap=50
+    # (vs. Assignment 8's 0) keeps a fact near a chunk boundary intact.
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     splits = splitter.split_documents(docs)
 
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
