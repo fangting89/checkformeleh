@@ -34,7 +34,7 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 _HEADER_FIELD_RE = re.compile(r"^(\w+):\s*(.+)$", re.MULTILINE)
 
 
-def _extract_header_metadata(text: str) -> dict[str, str]:
+def extract_header_metadata(text: str) -> dict[str, str]:
     """Parses the key/value pairs out of a source file's provenance header.
 
     Args:
@@ -61,7 +61,7 @@ def load_documents() -> list[Document]:
     loader = DirectoryLoader(str(SOURCES_DIR), glob="*.md", loader_cls=TextLoader)
     docs = loader.load()
     for doc in docs:
-        header = _extract_header_metadata(doc.page_content)
+        header = extract_header_metadata(doc.page_content)
         doc.metadata["scheme"] = header.get("scheme", "unknown")
         doc.metadata["source_url"] = header.get("source_url", "")
     return docs

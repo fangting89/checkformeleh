@@ -1,7 +1,7 @@
 """Tests for rag/ingest.py's pure header-parsing logic. No API calls,
 no vector store, no mocking needed."""
 
-from rag.ingest import _extract_header_metadata
+from rag.ingest import extract_header_metadata
 
 
 def test_extract_header_metadata_well_formed():
@@ -14,7 +14,7 @@ def test_extract_header_metadata_well_formed():
         "-->\n\n"
         "# CPF LIFE\n\nBody text here."
     )
-    metadata = _extract_header_metadata(text)
+    metadata = extract_header_metadata(text)
     assert metadata == {
         "source_url": "https://example.gov.sg/page",
         "scheme": "cpf_life",
@@ -25,7 +25,7 @@ def test_extract_header_metadata_well_formed():
 
 def test_extract_header_metadata_missing_field():
     text = "<!--\nsource_url: https://example.gov.sg/page\nscheme: comcare\n-->\n\nBody."
-    metadata = _extract_header_metadata(text)
+    metadata = extract_header_metadata(text)
     assert metadata == {
         "source_url": "https://example.gov.sg/page",
         "scheme": "comcare",
@@ -35,4 +35,4 @@ def test_extract_header_metadata_missing_field():
 
 def test_extract_header_metadata_no_header():
     text = "# Just a document\n\nNo comment header at all."
-    assert _extract_header_metadata(text) == {}
+    assert extract_header_metadata(text) == {}

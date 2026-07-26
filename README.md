@@ -5,6 +5,11 @@ schemes, built as a RAG (retrieval-augmented generation) portfolio piece.
 A companion to [read-leh](https://github.com/fangting89/read-leh), which
 covers LLM safety-gating and prompt-injection defense but not retrieval.
 
+**Live app:** [ask-leh.streamlit.app](https://ask-leh.streamlit.app)
+**Interactive walkthrough** (how the pipeline works, no live API calls needed to view): [fangting89.github.io/ask-leh/walkthrough.html](https://fangting89.github.io/ask-leh/walkthrough.html)
+
+![AskLeh, showing the sidebar, an example question, sources, and answer](docs/screenshot.png)
+
 ## Problem statement
 
 Singapore has real, valuable support schemes for seniors (CPF LIFE, Silver
@@ -94,6 +99,12 @@ To re-run the eval suite:
 uv run python -m eval.run_eval
 ```
 
+To check whether any source file's corpus is due for a refresh:
+
+```
+uv run python -m data.check_staleness
+```
+
 ## Eval results
 
 Scored against a 29-question hand-verified golden set (`eval/dataset.py`:
@@ -171,8 +182,6 @@ full suite, all 29 now pass.
 - **A larger, more adversarial eval set**: the current 6 out-of-scope and
   6 adversarial questions are enough to be a meaningful signal, not
   enough to be exhaustive.
-- **A "last updated" staleness check** against the live government pages,
-  since scheme figures do change over time and this corpus is a snapshot.
 
 ## Explicitly out of scope (by design, not oversight)
 
