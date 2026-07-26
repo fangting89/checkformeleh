@@ -14,6 +14,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "streamlit>=1.38",
     "pypdf>=6.14.2",
+    "torch>=2.0",
 ]
 
 [dependency-groups]
@@ -29,3 +30,17 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+# CPU-only torch: this app only ever runs local embeddings/reranking on
+# CPU, never GPU, but the default PyPI torch wheel bundles CUDA and is
+# several times larger, easily enough to blow past Streamlit Community
+# Cloud's 1 GB free-tier memory limit for something never used.
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux' or sys_platform == 'darwin'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
