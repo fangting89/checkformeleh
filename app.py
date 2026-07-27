@@ -6,6 +6,12 @@ generate. The gate's own category decides which scheme's chunks get
 retrieved, so retrieval never has to guess. Retrieval resolves first, so
 sources render immediately, then the answer streams in token by token.
 
+Rate-capped per session (MAX_QUESTIONS_PER_SESSION below) as a cost/abuse
+control, same reasoning and same scope limitation as readformeleh's demo:
+per-session only, not a persisted daily cap, since a static Streamlit
+Community Cloud demo has no shared store to count against across
+sessions/restarts.
+
 Run with: uv run streamlit run app.py
 """
 
@@ -14,6 +20,8 @@ import streamlit as st
 from rag.chain import build_chain, build_retriever, dedupe_sources, retrieve_context
 from rag.gate import route_question
 from rag.ingest import load_vectorstore
+
+MAX_QUESTIONS_PER_SESSION = 30
 
 SCHEME_LABELS = {
     "cpf_life": "CPF LIFE",
@@ -30,7 +38,10 @@ EXAMPLE_QUESTIONS = [
     ("ComCare", "What income qualifies someone for ComCare assistance?"),
     ("Lease Buyback", "What is the Lease Buyback Scheme bonus for a 3-room flat?"),
     ("EASE", "What percentage of the EASE improvement cost does the government pay?"),
-    ("Pioneer/Merdeka", "What year must someone be born to qualify for the Pioneer Generation Package?"),
+    (
+        "Pioneer/Merdeka",
+        "What year must someone be born to qualify for the Pioneer Generation Package?",
+    ),
 ]
 
 # The theme deliberately echoes Singapore's real Government Design System
@@ -42,10 +53,10 @@ DISCLAIMER = (
     "endorsed by, or an official channel of the Singapore Government."
 )
 
-st.set_page_config(page_title="AskLeh", page_icon="🧓")
+st.set_page_config(page_title="CheckForMeLeh", page_icon="🧓")
 
 with st.sidebar:
-    st.header("About AskLeh")
+    st.header("About CheckForMeLeh")
     st.write(
         "Answers questions about 6 Singapore senior support schemes from "
         "a small, hand-verified corpus of real government pages and "
@@ -56,12 +67,11 @@ with st.sidebar:
         st.write(f"- {label}")
     st.divider()
     st.caption(DISCLAIMER)
-    st.caption("[Source on GitHub](https://github.com/fangting89/ask-leh)")
+    st.caption("[Source on GitHub](https://github.com/fangting89/checkformeleh)")
 
-st.title("AskLeh")
+st.title("CheckForMeLeh")
 st.caption(
-    "Ask a question about Singapore senior support schemes, answered in "
-    "plain language."
+    "Ask a question about Singapore senior support schemes, answered in plain language."
 )
 st.caption(f"⚠️ {DISCLAIMER}")
 
@@ -91,7 +101,14 @@ for row_start in range(0, len(EXAMPLE_QUESTIONS), EXAMPLES_PER_ROW):
 
 question = st.text_input("Your question", key="question")
 
-if question:
+questions_asked = st.session_state.get("questions_asked", 0)
+if question and questions_asked >= MAX_QUESTIONS_PER_SESSION:
+    st.warning(
+        f"⚠️ This demo caps questions at {MAX_QUESTIONS_PER_SESSION} per session "
+        "to control API cost. Refresh the page to reset."
+    )
+elif question:
+    st.session_state.questions_asked = questions_asked + 1
     with st.spinner("Checking..."):
         route = route_question(question)
 

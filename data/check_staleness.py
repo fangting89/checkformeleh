@@ -49,7 +49,9 @@ def main() -> None:
             stale.append((path.name, retrieved_date))
 
     if not stale:
-        print(f"All source files retrieved within the last {STALE_AFTER_MONTHS} months.")
+        print(
+            f"All source files retrieved within the last {STALE_AFTER_MONTHS} months."
+        )
         return
 
     print(f"{len(stale)} source file(s) older than {STALE_AFTER_MONTHS} months:")

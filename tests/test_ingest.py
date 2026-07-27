@@ -24,7 +24,9 @@ def test_extract_header_metadata_well_formed():
 
 
 def test_extract_header_metadata_missing_field():
-    text = "<!--\nsource_url: https://example.gov.sg/page\nscheme: comcare\n-->\n\nBody."
+    text = (
+        "<!--\nsource_url: https://example.gov.sg/page\nscheme: comcare\n-->\n\nBody."
+    )
     metadata = extract_header_metadata(text)
     assert metadata == {
         "source_url": "https://example.gov.sg/page",

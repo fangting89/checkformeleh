@@ -1,19 +1,24 @@
 """The safety gate: decides whether a user's question falls within the
 6 supported schemes before any retrieval or generation happens.
 
-Reuses read-leh's classify_letter pattern deliberately, not a LangChain
-router: forced tool-use (the model must return a structured decision, not
-free text it might phrase ambiguously) and temperature=0, since this is
-the one categorical decision the whole pipeline depends on. The user's
-question is treated as untrusted content, the same defense read-leh's
-classify_letter uses against a letter photo trying to instruct the
-classifier directly - here, against a question trying to instruct the
-gate directly.
+Built on lehcore.call_structured, the same forced-tool-use +
+temperature=0 mechanics readformeleh's classify_letter uses (this
+project's gate and readformeleh's classify_letter converged on the
+identical shape independently, which is exactly why that mechanics layer
+was pulled into lehcore rather than left hand-copied a third time): the
+model must return a structured decision, not free text it might phrase
+ambiguously, since this is the one categorical decision the whole
+pipeline depends on. The user's question is treated as untrusted content,
+the same defense readformeleh's classify_letter uses against a letter
+photo trying to instruct the classifier directly - here, against a
+question trying to instruct the gate directly.
 """
 
 from typing import Literal, TypedDict
 
-from rag.config import MODEL, get_client
+from lehcore import call_structured
+
+from rag.config import MODEL
 
 RouteCategory = Literal[
     "cpf_life",
@@ -107,19 +112,15 @@ def route_question(question: str) -> RouteDecision:
         The routing decision: whether to answer, which scheme it maps to
         (or "out_of_scope"), and a one-line reason.
     """
-    client = get_client()
-    response = client.messages.create(
+    result = call_structured(
+        system_prompt=_SYSTEM_PROMPT,
+        tool=_TOOL,
+        messages=[{"role": "user", "content": question}],
         model=MODEL,
         max_tokens=256,
-        temperature=0,
-        system=_SYSTEM_PROMPT,
-        tools=[_TOOL],
-        tool_choice={"type": "tool", "name": "route_question"},
-        messages=[{"role": "user", "content": question}],
     )
-    tool_use = next(block for block in response.content if block.type == "tool_use")
     return RouteDecision(
-        decision=tool_use.input["decision"],
-        category=tool_use.input["category"],
-        reason=tool_use.input["reason"],
+        decision=result["decision"],
+        category=result["category"],
+        reason=result["reason"],
     )
