@@ -69,7 +69,8 @@ with st.sidebar:
     st.caption(DISCLAIMER)
     st.caption("[Source on GitHub](https://github.com/fangting89/checkformeleh)")
 
-st.title("CheckForMeLeh")
+st.title("Senior Support Scheme Q&A Assistant")
+st.caption("checkformeleh")
 st.caption(
     "Ask a question about Singapore senior support schemes, answered in plain language."
 )

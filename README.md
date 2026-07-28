@@ -1,6 +1,6 @@
-# checkformeleh
+# Senior Support Scheme Q&A Assistant
 
-A question-answering assistant over 6 Singapore senior/social-support
+**checkformeleh** — A question-answering assistant over 6 Singapore senior/social-support
 schemes, built as a RAG (retrieval-augmented generation) portfolio piece.
 A companion to [readformeleh](https://github.com/fangting89/readformeleh),
 which covers LLM safety-gating and prompt-injection defense but not
