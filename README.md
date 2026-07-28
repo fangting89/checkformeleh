@@ -77,17 +77,17 @@ the live source, with a provenance header (`source_url`, `scheme`, `title`,
 `sentence-transformers/all-MiniLM-L6-v2` (free, no API cost, no
 run-to-run embedding drift), stored in a local Chroma vector store.
 
-## Relevance to HTX
+## Design principles: AI safety and governance
 
 The eval numbers below (`hallucination flags: 0/29`, `adversarial_gate_
 accuracy: 1.0`) are the concrete evidence behind a broader claim: the
 forced tool-use gate (temperature=0, tool choice never `"auto"`) and the
-deterministic, no-LLM-judge eval harness are the same engineering
-discipline HTX's own AI programme names explicitly - "AI Central"
-governance/assurance, and "AI safety and security" as a stated AI R&D
-focus area. This project sits on the citizen-facing, preventive side of
-that problem: helping someone find and understand support they're
-entitled to, rather than triaging a case after something's gone wrong.
+deterministic, no-LLM-judge eval harness reflect a broader practice -
+safety-critical decisions in an LLM pipeline should be structured,
+evaluated, and auditable, not left to free-text prompting. This project
+sits on the citizen-facing, preventive side of that problem: helping
+someone find and understand support they're entitled to, rather than
+triaging a case after something's gone wrong.
 
 ## Setup
 
@@ -199,10 +199,10 @@ hand-copied per project.
 ## Sovereignty
 
 This project uses the Anthropic API directly, not an on-prem/air-gapped
-model. HTX's own 2026 direction treats sovereign AI (on-prem, air-gapped,
-e.g. their NGINE/Phoenix stack) as "non-negotiable" for public safety data
-specifically because sensitive data shouldn't leave a controlled
-environment. For a personal portfolio project answering questions from a
+model. Public-safety and other regulated deployments increasingly treat
+on-prem/air-gapped ("sovereign") AI as a hard requirement, since sensitive
+data shouldn't leave a controlled environment. For a personal portfolio
+project answering questions from a
 small, public, government-published corpus (no private user data at
 rest), a managed API is the right tradeoff for cost and iteration speed.
 A real institutional deployment of this pattern would swap the Claude API
