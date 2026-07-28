@@ -185,8 +185,8 @@ vulnerable:
 | Need | Status | Evidence |
 |---|---|---|
 | Access (support schemes) | Built - checkformeleh | Schemes scattered across fragmented gov sites |
-| Comprehension (official mail) | Built - readformeleh | Government-impersonation is seniors' top scam vector |
-| Authenticity (AI content, scams) | Built - isitrealah | 15% of scam victims now 65+, nearly doubled in a year ([source](https://theonlinecitizen.com/2026/05/07/seniors-aged-65-and-above-made-up-15-of-scam-victims-in-2025-losing-s-37-000-on-average)) |
+| Comprehension (official mail) | Built - [readformeleh](https://github.com/fangting89/readformeleh) | Government-impersonation is seniors' top scam vector |
+| Authenticity (AI content, scams) | Built - [isitrealah](https://github.com/fangting89/isitrealah) | 15% of scam victims now 65+, nearly doubled in a year ([source](https://theonlinecitizen.com/2026/05/07/seniors-aged-65-and-above-made-up-15-of-scam-victims-in-2025-losing-s-37-000-on-average)) |
 | Social connection (loneliness) | Named next module | 1 in 3 seniors feel lonely most of the time; isolation is linked to 3-5 fewer years of life at 60 ([MOH](https://www.moh.gov.sg/newsroom/addressing-loneliness-and-psychological-distress-among-seniors-living-alone/)) |
 
 The social-connection module (a befriender/activity-finder) would reuse
